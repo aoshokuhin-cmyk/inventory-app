@@ -13,7 +13,11 @@
 <body>
 
 <h2>在庫確認</h2>
+<input id="search" placeholder="商品検索">
+<button onclick="searchItem()">検索</button>
 
+<button onclick="startInventory()">棚卸し開始</button>
+<button onclick="endInventory()">棚卸し終了</button>
 <button onclick="startScan()">📷 バーコード読み取り</button>
 
 <div id="log"></div>
