@@ -2,26 +2,211 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>在庫確認</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>在庫管理アプリ</title>
+
 <style>
-  body { font-family: sans-serif; padding: 16px; }
-  button { font-size: 18px; padding: 10px; margin: 8px 0; width: 100%; }
-  #log { margin-top: 16px; }
+body{
+font-family:sans-serif;
+padding:20px;
+background:#f5f5f5;
+}
+
+button{
+padding:10px;
+margin:5px;
+font-size:16px;
+}
+
+input{
+padding:8px;
+margin:5px;
+font-size:16px;
+}
+
+#reader{
+width:300px;
+margin-top:10px;
+}
+
+table{
+border-collapse:collapse;
+margin-top:20px;
+width:100%;
+}
+
+th,td{
+border:1px solid #ccc;
+padding:8px;
+text-align:center;
+}
 </style>
 </head>
+
 <body>
 
-<h2>在庫確認</h2>
-<input id="search" placeholder="商品検索">
-<button onclick="searchItem()">検索</button>
-<button onclick="exportCSV()">CSV出力（棚卸表）</button>
-<button onclick="startInventory()">棚卸し開始</button>
-<button onclick="endInventory()">棚卸し終了</button>
-<button onclick="startScan()">📷 バーコード読み取り</button>
+<h2>在庫管理アプリ</h2>
 
-<div id="log"></div>
+<button onclick="startScanner()">バーコードスキャン</button>
+<button onclick="addProduct()">商品追加</button>
+<button onclick="increaseStock()">在庫＋1</button>
+<button onclick="searchProduct()">商品検索</button>
+<button onclick="exportCSV()">CSV出力</button>
 
-<script src="app.js"></script>
+<br>
+
+<input id="barcode" placeholder="バーコード">
+<input id="name" placeholder="商品名">
+<input id="search" placeholder="検索">
+
+<div id="reader"></div>
+
+<table id="table">
+
+<thead>
+<tr>
+<th>バーコード</th>
+<th>商品名</th>
+<th>在庫</th>
+</tr>
+</thead>
+
+<tbody></tbody>
+
+</table>
+
+<script src="https://unpkg.com/html5-qrcode"></script>
+
+<script>
+
+let db = JSON.parse(localStorage.getItem("inventory") || "{}")
+
+function save(){
+localStorage.setItem("inventory",JSON.stringify(db))
+render()
+}
+
+function render(){
+
+const tbody=document.querySelector("tbody")
+tbody.innerHTML=""
+
+for(let code in db){
+
+let row = "<tr><td>"+code+"</td><td>"+db[code].name+"</td><td>"+db[code].stock+"</td></tr>"
+
+tbody.innerHTML += row
+
+}
+
+}
+
+function addProduct(){
+
+let code=document.getElementById("barcode").value
+let name=document.getElementById("name").value
+
+if(!code || !name){
+
+alert("バーコードと商品名を入力してください")
+return
+
+}
+
+if(!db[code]){
+
+db[code]={name:name,stock:0}
+
+}
+
+save()
+
+}
+
+function increaseStock(){
+
+let code=document.getElementById("barcode").value
+
+if(!db[code]){
+
+alert("先に商品登録してください")
+return
+
+}
+
+db[code].stock++
+
+save()
+
+}
+
+function searchProduct(){
+
+let q=document.getElementById("search").value
+
+const tbody=document.querySelector("tbody")
+
+tbody.innerHTML=""
+
+for(let code in db){
+
+if(code.includes(q) || db[code].name.includes(q)){
+
+let row="<tr><td>"+code+"</td><td>"+db[code].name+"</td><td>"+db[code].stock+"</td></tr>"
+
+tbody.innerHTML += row
+
+}
+
+}
+
+}
+
+function exportCSV(){
+
+let csv="バーコード,商品名,在庫\n"
+
+for(let code in db){
+
+csv += code + "," + db[code].name + "," + db[code].stock + "\n"
+
+}
+
+let blob=new Blob([csv])
+
+let a=document.createElement("a")
+
+a.href=URL.createObjectURL(blob)
+
+a.download="inventory.csv"
+
+a.click()
+
+}
+
+function startScanner(){
+
+const qr = new Html5Qrcode("reader")
+
+qr.start(
+{ facingMode:"environment" },
+{ fps:10, qrbox:250 },
+
+(code)=>{
+
+document.getElementById("barcode").value = code
+
+qr.stop()
+
+}
+
+)
+
+}
+
+render()
+
+</script>
+
 </body>
 </html>
