@@ -15,12 +15,10 @@ async function startScan() {
     video: { facingMode: "environment" }
   });
 
-  // video要素を作って画面に表示する
   video = document.createElement("video");
   video.srcObject = stream;
   video.setAttribute("playsinline", true);
   video.style.width = "100%";
-  video.style.marginTop = "10px";
   document.body.prepend(video);
   await video.play();
 
@@ -37,18 +35,47 @@ async function startScan() {
 }
 
 function addItem(code) {
-  if (!inventory[code]) inventory[code] = 0;
-  inventory[code]++;
+
+  if (!inventory[code]) {
+
+    let name = prompt("この商品の名前を入力してください");
+
+    if (!name) name = "商品";
+
+    inventory[code] = {
+      name: name,
+      qty: 0
+    };
+
+  }
+
+  inventory[code].qty++;
+
   localStorage.setItem("inventory", JSON.stringify(inventory));
+
   render();
 }
 
 function render() {
+
   const log = document.getElementById("log");
+
   log.innerHTML = "<h3>在庫</h3>";
+
   for (const code in inventory) {
-    log.innerHTML += `<div>${code}：${inventory[code]}</div>`;
+
+    const item = inventory[code];
+
+    log.innerHTML += `
+      <div>
+      ${item.name}  
+      (バーコード:${code})  
+      ：${item.qty}
+      </div>
+    `;
+
   }
+
 }
 
 render();
