@@ -1,180 +1,116 @@
-let inventory = JSON.parse(localStorage.getItem("inventory") || "{}");
-let video;
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>在庫管理アプリ</title>
+<style>
+body{font-family:sans-serif;padding:20px;background:#f5f5f5}
+button{padding:10px;margin:5px;font-size:16px}
+input{padding:8px;margin:5px;font-size:16px}
+#reader{width:300px;margin-top:10px}
+table{border-collapse:collapse;margin-top:20px}
+th,td{border:1px solid #ccc;padding:8px}
+</style>
+</head>
+<body>
+<h2>在庫管理アプリ</h2>
 
-function save() {
-  localStorage.setItem("inventory", JSON.stringify(inventory));
+<button onclick="startScanner()">バーコードスキャン</button>
+<button onclick="addProduct()">商品追加</button>
+<button onclick="increaseStock()">在庫＋1</button>
+<button onclick="searchProduct()">商品検索</button>
+<button onclick="exportCSV()">CSV出力</button>
+
+<br>
+
+<input id="barcode" placeholder="バーコード">
+<input id="name" placeholder="商品名">
+<input id="search" placeholder="検索">
+
+<div id="reader"></div>
+
+<table id="table">
+<thead>
+<tr>
+<th>バーコード</th>
+<th>商品名</th>
+<th>在庫</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+
+<script src="https://unpkg.com/html5-qrcode"></script>
+<script>
+let db = JSON.parse(localStorage.getItem("inventory")||"{}");
+
+function save(){
+localStorage.setItem("inventory",JSON.stringify(db));
+render();
 }
 
-async function startScan() {
-
-  if (!("BarcodeDetector" in window)) {
-    alert("バーコード非対応");
-    return;
-  }
-
-  const detector = new BarcodeDetector({
-    formats: ["ean_13", "ean_8", "code_128"]
-  });
-
-  const stream = await navigator.mediaDevices.getUserMedia({
-    video: { facingMode: "environment" }
-  });
-
-  video = document.createElement("video");
-  video.srcObject = stream;
-  video.style.width = "100%";
-  document.body.prepend(video);
-  await video.play();
-
-  const interval = setInterval(async () => {
-
-    const codes = await detector.detect(video);
-
-    if (codes.length > 0) {
-
-      const code = codes[0].rawValue;
-
-      stream.getTracks().forEach(t => t.stop());
-
-      clearInterval(interval);
-
-      video.remove();
-
-      addItem(code);
-
-    }
-
-  }, 500);
-
+function render(){
+const tbody=document.querySelector("tbody");
+tbody.innerHTML="";
+for(let code in db){
+let row=`<tr><td>${code}</td><td>${db[code].name}</td><td>${db[code].stock}</td></tr>`;
+tbody.innerHTML+=row;
+}
 }
 
-function addItem(code) {
-
-  if (!inventory[code]) {
-
-    let name = prompt("商品名");
-
-    if (!name) name = "商品";
-
-    inventory[code] = {
-      name: name,
-      qty: 0
-    };
-
-  }
-
-  inventory[code].qty++;
-
-  save();
-
-  render();
-
+function addProduct(){
+let code=document.getElementById("barcode").value;
+let name=document.getElementById("name").value;
+if(!code||!name){alert("バーコードと商品名を入力");return}
+if(!db[code]){
+ db[code]={name:name,stock:0}
+}
+save();
 }
 
-function editItem(code) {
+function increaseStock(){
+let code=document.getElementById("barcode").value;
+if(!db[code]){alert("商品登録してください");return}
 
-  let newName = prompt("商品名変更", inventory[code].name);
-
-  if (newName) {
-
-    inventory[code].name = newName;
-
-    save();
-
-    render();
-
-  }
-
+db[code].stock++;
+save();
 }
 
-function deleteItem(code) {
-
-  if (confirm("削除しますか？")) {
-
-    delete inventory[code];
-
-    save();
-
-    render();
-
-  }
-
+function searchProduct(){
+let q=document.getElementById("search").value;
+const tbody=document.querySelector("tbody");
+tbody.innerHTML="";
+for(let code in db){
+ if(code.includes(q)||db[code].name.includes(q)){
+ let row=`<tr><td>${code}</td><td>${db[code].name}</td><td>${db[code].stock}</td></tr>`;
+ tbody.innerHTML+=row;
+ }
+}
 }
 
-function render(list = inventory) {
-
-  const log = document.getElementById("log");
-
-  log.innerHTML = "<h3>在庫</h3>";
-
-  for (const code in list) {
-
-    const item = list[code];
-
-    log.innerHTML += `
-      <div style="margin-bottom:10px">
-      <b>${item.name}</b><br>
-      ${code}<br>
-      在庫:${item.qty}<br>
-      <button onclick="editItem('${code}')">編集</button>
-      <button onclick="deleteItem('${code}')">削除</button>
-      </div>
-      <hr>
-    `;
-
-  }
-
+function exportCSV(){
+let csv="バーコード,商品名,在庫\n";
+for(let code in db){
+ csv+=`${code},${db[code].name},${db[code].stock}\n`;
+}
+let blob=new Blob([csv]);
+let a=document.createElement("a");
+a.href=URL.createObjectURL(blob);
+a.download="inventory.csv";
+a.click();
 }
 
-function searchItem() {
-
-  const word = document.getElementById("search").value.toLowerCase();
-
-  let result = {};
-
-  for (const code in inventory) {
-
-    const item = inventory[code];
-
-    if (
-      item.name.toLowerCase().includes(word) ||
-      code.includes(word)
-    ) {
-
-      result[code] = item;
-
-    }
-
-  }
-
-  render(result);
-
-}
-
-function exportCSV() {
-
-  let csv = "商品名,バーコード,在庫\n";
-
-  for (const code in inventory) {
-
-    const item = inventory[code];
-
-    csv += `${item.name},${code},${item.qty}\n`;
-
-  }
-
-  const blob = new Blob([csv], { type: "text/csv" });
-
-  const url = URL.createObjectURL(blob);
-
-  const a = document.createElement("a");
-
-  a.href = url;
-
-  a.download = "inventory.csv";
-
-  a.click();
-
+function startScanner(){
+const qr=new Html5Qrcode("reader");
+qr.start({facingMode:"environment"},{fps:10,qrbox:250},
+(code)=>{
+ document.getElementById("barcode").value=code;
+ qr.stop();
+});
 }
 
 render();
+</script>
+</body>
+</html>
