@@ -1,6 +1,9 @@
 let inventory = JSON.parse(localStorage.getItem("inventory") || "{}");
 let video;
-let inventoryMode = false;
+
+function save() {
+  localStorage.setItem("inventory", JSON.stringify(inventory));
+}
 
 async function startScan() {
 
@@ -19,7 +22,6 @@ async function startScan() {
 
   video = document.createElement("video");
   video.srcObject = stream;
-  video.setAttribute("playsinline", true);
   video.style.width = "100%";
   document.body.prepend(video);
   await video.play();
@@ -50,7 +52,7 @@ function addItem(code) {
 
   if (!inventory[code]) {
 
-    let name = prompt("商品名を入力");
+    let name = prompt("商品名");
 
     if (!name) name = "商品";
 
@@ -63,9 +65,39 @@ function addItem(code) {
 
   inventory[code].qty++;
 
-  localStorage.setItem("inventory", JSON.stringify(inventory));
+  save();
 
   render();
+
+}
+
+function editItem(code) {
+
+  let newName = prompt("商品名変更", inventory[code].name);
+
+  if (newName) {
+
+    inventory[code].name = newName;
+
+    save();
+
+    render();
+
+  }
+
+}
+
+function deleteItem(code) {
+
+  if (confirm("削除しますか？")) {
+
+    delete inventory[code];
+
+    save();
+
+    render();
+
+  }
 
 }
 
@@ -80,12 +112,12 @@ function render(list = inventory) {
     const item = list[code];
 
     log.innerHTML += `
-      <div>
-      ${item.name}
-      <br>
-      ${code}
-      <br>
-      在庫:${item.qty}
+      <div style="margin-bottom:10px">
+      <b>${item.name}</b><br>
+      ${code}<br>
+      在庫:${item.qty}<br>
+      <button onclick="editItem('${code}')">編集</button>
+      <button onclick="deleteItem('${code}')">削除</button>
       </div>
       <hr>
     `;
@@ -119,19 +151,29 @@ function searchItem() {
 
 }
 
-function startInventory() {
+function exportCSV() {
 
-  alert("棚卸しモード開始");
+  let csv = "商品名,バーコード,在庫\n";
 
-  inventoryMode = true;
+  for (const code in inventory) {
 
-}
+    const item = inventory[code];
 
-function endInventory() {
+    csv += `${item.name},${code},${item.qty}\n`;
 
-  alert("棚卸し終了");
+  }
 
-  inventoryMode = false;
+  const blob = new Blob([csv], { type: "text/csv" });
+
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+
+  a.href = url;
+
+  a.download = "inventory.csv";
+
+  a.click();
 
 }
 
