@@ -13,6 +13,7 @@ input{padding:8px;margin:5px;font-size:16px}
 
 table{border-collapse:collapse;margin-top:20px;width:100%}
 th,td{border:1px solid #ccc;padding:8px;text-align:center}
+#total{margin-top:15px;font-weight:bold;font-size:18px}
 </style>
 </head>
 
@@ -30,16 +31,22 @@ th,td{border:1px solid #ccc;padding:8px;text-align:center}
 
 <input id="barcode" placeholder="バーコード">
 <input id="name" placeholder="商品名">
+<input id="sell" placeholder="売値">
+<input id="buy" placeholder="買値">
 <input id="stock" placeholder="在庫数">
 <input id="search" placeholder="検索">
 
 <div id="reader"></div>
+
+<div id="total">在庫金額合計（買値）: 0</div>
 
 <table>
 <thead>
 <tr>
 <th>バーコード</th>
 <th>商品名</th>
+<th>売値</th>
+<th>買値</th>
 <th>在庫</th>
 <th>編集</th>
 <th>削除</th>
@@ -62,15 +69,24 @@ render()
 function render(){
 
 const tbody=document.getElementById("tbody")
+let totalValue = 0
 
 tbody.innerHTML=""
 
 for(let code in db){
 
+let item=db[code]
+
+let value = (item.buy || 0) * (item.stock || 0)
+
+totalValue += value
+
 let row=`<tr>
 <td>${code}</td>
-<td>${db[code].name}</td>
-<td>${db[code].stock}</td>
+<td>${item.name}</td>
+<td>${item.sell}</td>
+<td>${item.buy}</td>
+<td>${item.stock}</td>
 <td><button onclick="editProduct('${code}')">編集</button></td>
 <td><button onclick="deleteProduct('${code}')">削除</button></td>
 </tr>`
@@ -80,12 +96,17 @@ tbody.innerHTML += row
 
 }
 
+
+document.getElementById("total").innerText = "在庫金額合計（買値）: " + totalValue
+
 }
 
 function addProduct(){
 
 let code=document.getElementById("barcode").value
 let name=document.getElementById("name").value
+let sell=parseFloat(document.getElementById("sell").value) || 0
+let buy=parseFloat(document.getElementById("buy").value) || 0
 
 if(!code || !name){
 alert("バーコードと商品名を入力してください")
@@ -94,7 +115,7 @@ return
 
 if(!db[code]){
 
-db[code]={name:name,stock:0}
+db[code]={name:name,buy:buy,sell:sell,stock:0}
 
 }
 
@@ -126,15 +147,15 @@ save()
 
 function editProduct(code){
 
-let newName = prompt("新しい商品名",db[code].name)
+let newName = prompt("商品名",db[code].name)
+let newSell = prompt("売値",db[code].sell)
+let newBuy = prompt("買値",db[code].buy)
 
-if(newName){
-
-db[code].name = newName
+if(newName!==null){db[code].name=newName}
+if(newSell!==null){db[code].sell=parseFloat(newSell)||0}
+if(newBuy!==null){db[code].buy=parseFloat(newBuy)||0}
 
 save()
-
-}
 
 }
 
@@ -156,16 +177,26 @@ let q=document.getElementById("search").value
 
 const tbody=document.getElementById("tbody")
 
+let totalValue = 0
+
 tbody.innerHTML=""
 
 for(let code in db){
 
-if(code.includes(q) || db[code].name.includes(q)){
+let item=db[code]
+
+if(code.includes(q) || item.name.includes(q)){
+
+let value = (item.buy || 0) * (item.stock || 0)
+
+totalValue += value
 
 let row=`<tr>
 <td>${code}</td>
-<td>${db[code].name}</td>
-<td>${db[code].stock}</td>
+<td>${item.name}</td>
+<td>${item.sell}</td>
+<td>${item.buy}</td>
+<td>${item.stock}</td>
 <td><button onclick="editProduct('${code}')">編集</button></td>
 <td><button onclick="deleteProduct('${code}')">削除</button></td>
 </tr>`
@@ -177,15 +208,20 @@ tbody.innerHTML += row
 
 }
 
+
+document.getElementById("total").innerText = "在庫金額合計（買値）: " + totalValue
+
 }
 
 function exportCSV(){
 
-let csv="バーコード,商品名,在庫\n"
+let csv="バーコード,商品名,売値,買値,在庫\n"
 
 for(let code in db){
 
-csv += `${code},${db[code].name},${db[code].stock}\n`
+let item=db[code]
+
+csv += `${code},${item.name},${item.sell},${item.buy},${item.stock}\n`
 
 }
 
