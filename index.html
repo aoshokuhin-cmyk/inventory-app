@@ -6,40 +6,13 @@
 <title>在庫管理アプリ</title>
 
 <style>
-body{
-font-family:sans-serif;
-padding:20px;
-background:#f5f5f5;
-}
+body{font-family:sans-serif;padding:20px;background:#f5f5f5}
+button{padding:10px;margin:5px;font-size:16px}
+input{padding:8px;margin:5px;font-size:16px}
+#reader{width:300px;margin-top:10px}
 
-button{
-padding:10px;
-margin:5px;
-font-size:16px;
-}
-
-input{
-padding:8px;
-margin:5px;
-font-size:16px;
-}
-
-#reader{
-width:300px;
-margin-top:10px;
-}
-
-table{
-border-collapse:collapse;
-margin-top:20px;
-width:100%;
-}
-
-th,td{
-border:1px solid #ccc;
-padding:8px;
-text-align:center;
-}
+table{border-collapse:collapse;margin-top:20px;width:100%}
+th,td{border:1px solid #ccc;padding:8px;text-align:center}
 </style>
 </head>
 
@@ -49,7 +22,7 @@ text-align:center;
 
 <button onclick="startScanner()">バーコードスキャン</button>
 <button onclick="addProduct()">商品追加</button>
-<button onclick="increaseStock()">在庫＋1</button>
+<button onclick="setStock()">在庫数入力</button>
 <button onclick="searchProduct()">商品検索</button>
 <button onclick="exportCSV()">CSV出力</button>
 
@@ -57,22 +30,22 @@ text-align:center;
 
 <input id="barcode" placeholder="バーコード">
 <input id="name" placeholder="商品名">
+<input id="stock" placeholder="在庫数">
 <input id="search" placeholder="検索">
 
 <div id="reader"></div>
 
-<table id="table">
-
+<table>
 <thead>
 <tr>
 <th>バーコード</th>
 <th>商品名</th>
 <th>在庫</th>
+<th>編集</th>
+<th>削除</th>
 </tr>
 </thead>
-
-<tbody></tbody>
-
+<tbody id="tbody"></tbody>
 </table>
 
 <script src="https://unpkg.com/html5-qrcode"></script>
@@ -88,12 +61,20 @@ render()
 
 function render(){
 
-const tbody=document.querySelector("tbody")
+const tbody=document.getElementById("tbody")
+
 tbody.innerHTML=""
 
 for(let code in db){
 
-let row = "<tr><td>"+code+"</td><td>"+db[code].name+"</td><td>"+db[code].stock+"</td></tr>"
+let row=`<tr>
+<td>${code}</td>
+<td>${db[code].name}</td>
+<td>${db[code].stock}</td>
+<td><button onclick="editProduct('${code}')">編集</button></td>
+<td><button onclick="deleteProduct('${code}')">削除</button></td>
+</tr>`
+
 
 tbody.innerHTML += row
 
@@ -107,10 +88,8 @@ let code=document.getElementById("barcode").value
 let name=document.getElementById("name").value
 
 if(!code || !name){
-
 alert("バーコードと商品名を入力してください")
 return
-
 }
 
 if(!db[code]){
@@ -123,20 +102,51 @@ save()
 
 }
 
-function increaseStock(){
+function setStock(){
 
 let code=document.getElementById("barcode").value
+let stock=parseInt(document.getElementById("stock").value)
 
 if(!db[code]){
-
-alert("先に商品登録してください")
+alert("商品を登録してください")
 return
+}
+
+if(isNaN(stock)){
+alert("在庫数を入力してください")
+return
+}
+
+
+db[code].stock = stock
+
+save()
 
 }
 
-db[code].stock++
+function editProduct(code){
+
+let newName = prompt("新しい商品名",db[code].name)
+
+if(newName){
+
+db[code].name = newName
 
 save()
+
+}
+
+}
+
+function deleteProduct(code){
+
+if(confirm("削除しますか？")){
+
+delete db[code]
+
+save()
+
+}
 
 }
 
@@ -144,7 +154,7 @@ function searchProduct(){
 
 let q=document.getElementById("search").value
 
-const tbody=document.querySelector("tbody")
+const tbody=document.getElementById("tbody")
 
 tbody.innerHTML=""
 
@@ -152,7 +162,14 @@ for(let code in db){
 
 if(code.includes(q) || db[code].name.includes(q)){
 
-let row="<tr><td>"+code+"</td><td>"+db[code].name+"</td><td>"+db[code].stock+"</td></tr>"
+let row=`<tr>
+<td>${code}</td>
+<td>${db[code].name}</td>
+<td>${db[code].stock}</td>
+<td><button onclick="editProduct('${code}')">編集</button></td>
+<td><button onclick="deleteProduct('${code}')">削除</button></td>
+</tr>`
+
 
 tbody.innerHTML += row
 
@@ -168,7 +185,7 @@ let csv="バーコード,商品名,在庫\n"
 
 for(let code in db){
 
-csv += code + "," + db[code].name + "," + db[code].stock + "\n"
+csv += `${code},${db[code].name},${db[code].stock}\n`
 
 }
 
