@@ -6,35 +6,50 @@
 <title>在庫管理アプリ</title>
 
 <style>
-body{font-family:sans-serif;padding:20px;background:#f5f5f5}
-button{padding:10px;margin:5px;font-size:16px}
+body{font-family:sans-serif;padding:20px;background:#f4f6f8}
+h2{margin-bottom:10px}
+
+.toolbar{margin-bottom:10px}
+button{padding:8px 12px;margin:4px;border-radius:6px;border:1px solid #ccc;background:white;cursor:pointer}
+button:hover{background:#eee}
+
 input{padding:6px;margin:3px;font-size:14px}
+
 #reader{width:300px;margin-top:10px}
 
-table{border-collapse:collapse;margin-top:20px;width:100%}
-th,td{border:1px solid #ccc;padding:6px;text-align:center}
-#total{margin-top:15px;font-weight:bold;font-size:18px}
-.tableInput{width:80px}
+table{border-collapse:collapse;margin-top:15px;width:100%;background:white}
+th,td{border:1px solid #ddd;padding:6px;text-align:center}
+th{background:#fafafa}
+
+.tableInput{width:70px}
+
+#total{margin-top:10px;font-weight:bold;font-size:16px}
+.highlight{background:#fff3cd}
+
+.moveBtn{padding:4px 6px;font-size:12px}
+
 </style>
 </head>
 
 <body>
 
-<h2>在庫管理アプリ</h2>
+<h2>在庫管理</h2>
 
-<button onclick="startScanner()">バーコードスキャン</button>
-<button onclick="addProduct()">商品追加</button>
-<button onclick="searchProduct()">商品検索</button>
-<button onclick="exportCSV()">CSV出力</button>
+<div class="toolbar">
+<button onclick="startScanner()">📷 スキャン</button>
+<button onclick="addProduct()">➕ 商品登録</button>
+<button onclick="searchProduct()">🔍 検索</button>
+<button onclick="exportCSV()">📄 CSV</button>
+</div>
 
-<br>
-
+<div>
 <input id="barcode" placeholder="バーコード">
 <input id="name" placeholder="商品名">
 <input id="sell" placeholder="売値">
 <input id="buy" placeholder="買値">
-<input id="stock" placeholder="在庫数">
-<input id="search" placeholder="検索">
+<input id="stock" placeholder="在庫">
+<input id="search" placeholder="検索ワード">
+</div>
 
 <div id="reader"></div>
 
@@ -43,11 +58,13 @@ th,td{border:1px solid #ccc;padding:6px;text-align:center}
 <table>
 <thead>
 <tr>
+<th>順</th>
 <th>バーコード</th>
 <th>商品名</th>
 <th>売値</th>
 <th>買値</th>
 <th>在庫</th>
+<th>移動</th>
 <th>削除</th>
 </tr>
 </thead>
@@ -59,17 +76,238 @@ th,td{border:1px solid #ccc;padding:6px;text-align:center}
 <script>
 
 let db = JSON.parse(localStorage.getItem("inventory") || "{}")
+let order = JSON.parse(localStorage.getItem("order") || "[]")
 
 function save(){
 localStorage.setItem("inventory",JSON.stringify(db))
+localStorage.setItem("order",JSON.stringify(order))
 render()
+}
+
+function ensureOrder(){
+
+for(let code in db){
+
+if(!order.includes(code)){
+order.push(code)
+}
+
+}
+
+order = order.filter(c => db[c])
+
 }
 
 function updateField(code,field,value){
 
-if(field === 'stock') value = parseInt(value) || 0
-else value = parseFloat(value) || 0
+if(field==='sell' || field==='buy') value=parseFloat(value)||0
+if(field==='stock') value=parseInt(value)||0
 
+if(!db[code]) return
+
+db[code][field]=value
+
+save()
+
+}
+
+function render(){
+
+ensureOrder()
+
+const tbody=document.getElementById("tbody")
+
+let totalValue=0
+
+tbody.innerHTML=""
+
+order.forEach((code,index)=>{
+
+let item=db[code]
+
+if(!item) return
+
+let value=(item.buy||0)*(item.stock||0)
+
+totalValue+=value
+
+let row=document.createElement("tr")
+row.id="row_"+code
+
+row.innerHTML=`
+<td>${index+1}</td>
+<td>${code}</td>
+<td>${item.name}</td>
+<td><input class="tableInput" value="${item.sell}" onchange="updateField('${code}','sell',this.value)"></td>
+<td><input class="tableInput" value="${item.buy}" onchange="updateField('${code}','buy',this.value)"></td>
+<td><input class="tableInput" value="${item.stock}" onchange="updateField('${code}','stock',this.value)"></td>
+<td>
+<button class="moveBtn" onclick="moveUp('${code}')">↑</button>
+<button class="moveBtn" onclick="moveDown('${code}')">↓</button>
+</td>
+<td><button onclick="deleteProduct('${code}')">削除</button></td>
+`
+
+
+tbody.appendChild(row)
+
+})
+
+
+document.getElementById("total").innerText="在庫金額合計（買値）: "+totalValue
+
+}
+
+function addProduct(){
+
+let code=document.getElementById("barcode").value
+let name=document.getElementById("name").value
+let sell=parseFloat(document.getElementById("sell").value)||0
+let buy=parseFloat(document.getElementById("buy").value)||0
+let stock=parseInt(document.getElementById("stock").value)||0
+
+if(!code||!name){
+alert("バーコードと商品名を入力してください")
+return
+}
+
+if(!db[code]){
+
+db[code]={name:name,sell:sell,buy:buy,stock:stock}
+order.push(code)
+
+}
+
+save()
+
+}
+
+function deleteProduct(code){
+
+if(confirm("削除しますか？")){
+
+delete db[code]
+order=order.filter(c=>c!==code)
+
+save()
+
+}
+
+}
+
+function moveUp(code){
+
+let i=order.indexOf(code)
+
+if(i>0){
+
+[order[i-1],order[i]]=[order[i],order[i-1]]
+
+save()
+
+}
+
+}
+
+function moveDown(code){
+
+let i=order.indexOf(code)
+
+if(i<order.length-1){
+
+[order[i+1],order[i]]=[order[i],order[i+1]]
+
+save()
+
+}
+
+}
+
+function searchProduct(){
+
+let q=document.getElementById("search").value
+
+const rows=document.querySelectorAll("tbody tr")
+
+rows.forEach(r=>{
+
+let text=r.innerText
+
+if(text.includes(q)) r.style.display=""
+else r.style.display="none"
+
+})
+
+}
+
+function exportCSV(){
+
+let csv="バーコード,商品名,売値,買値,在庫\n"
+
+order.forEach(code=>{
+
+let item=db[code]
+
+if(!item) return
+
+csv+=`${code},${item.name},${item.sell},${item.buy},${item.stock}\n`
+
+})
+
+let blob=new Blob([csv])
+let a=document.createElement("a")
+
+a.href=URL.createObjectURL(blob)
+
+a.download="inventory.csv"
+
+a.click()
+
+}
+
+function startScanner(){
+
+const qr=new Html5Qrcode("reader")
+
+qr.start(
+{facingMode:"environment"},
+{fps:10,qrbox:250},
+(code)=>{
+
+qr.stop()
+
+if(db[code]){
+
+let row=document.getElementById("row_"+code)
+
+if(row){
+
+row.classList.add("highlight")
+row.scrollIntoView({behavior:"smooth",block:"center"})
+
+setTimeout(()=>row.classList.remove("highlight"),2000)
+
+}
+
+}else{
+
+document.getElementById("barcode").value=code
+alert("未登録商品です。商品名を入力して登録してください。")
+
+}
+
+}
+
+)
+
+}
+
+render()
+
+</script>
+
+</body>
+</html>
 if(field === 'name') value = value || ""
 
 if(!db[code]) return
